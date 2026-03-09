@@ -1,4 +1,5 @@
-import React from 'react'
+// 이렇게 수정하거나 (React를 직접 안 쓰면 아예 지워도 됩니다)
+import { } from 'react'
 
 function App() {
   return (
