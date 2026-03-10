@@ -11,12 +11,16 @@ function App() {
   useEffect(() => {
     try {
       const user = localStorage.getItem('currentUser');
-      if (user) {
+      if (user && user !== 'undefined' && user !== 'null') {
         const parsedUser = JSON.parse(user);
-        setIsLoggedIn(true);
+        if (parsedUser && typeof parsedUser === 'object') {
+          setIsLoggedIn(true);
+        } else {
+          localStorage.removeItem('currentUser');
+        }
       }
     } catch (error) {
-      // 로컬 스토리지 데이터가 손상된 경우 클리어
+      console.error('로컬 스토리지 파싱 오류:', error);
       localStorage.removeItem('currentUser');
       setIsLoggedIn(false);
     }
