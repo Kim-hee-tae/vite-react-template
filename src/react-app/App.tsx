@@ -1,5 +1,5 @@
 // 이렇게 수정하거나 (React를 직접 안 쓰면 아예 지워도 됩니다)
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
