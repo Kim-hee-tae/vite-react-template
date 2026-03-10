@@ -20,7 +20,7 @@ function SignUp() {
   // 비밀번호 일치 확인
   const isPasswordMatching = password === confirmPassword && password !== '';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // 이메일 형식 검증
@@ -41,27 +41,26 @@ function SignUp() {
       return;
     }
 
-    // 회원 가입 로직 (로컬 스토리지 사용)
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    if (users.find((user: any) => user.email === email)) {
-      alert('이미 존재하는 이메일입니다.');
-      return;
+    try {
+      const response = await fetch('/api/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(data.message);
+        window.location.href = '/login';
+      } else {
+        alert(data.error);
+      }
+    } catch (error) {
+      alert('회원 가입 중 오류가 발생했습니다.');
     }
-    // 관리자 계정 체크 (admin@admin.com으로 가입하면 관리자 계정 생성)
-    const isAdmin = email === 'admin@admin.com';
-    users.push({ 
-      email, 
-      password, 
-      isApproved: isAdmin ? true : false, 
-      role: isAdmin ? 'admin' : 'user' 
-    });
-    localStorage.setItem('users', JSON.stringify(users));
-    if (isAdmin) {
-      alert('관리자 계정 생성 완료! 로그인해주세요.');
-    } else {
-      alert('회원 가입 성공! 관리자 승인 후 로그인할 수 있습니다.');
-    }
-    window.location.href = '/login';
   };
 
   const getRuleColor = (isValid: boolean) => isValid ? '#4CAF50' : '#ccc';

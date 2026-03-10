@@ -9,9 +9,16 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    const user = localStorage.getItem('currentUser');
-    if (user) {
-      setIsLoggedIn(true);
+    try {
+      const user = localStorage.getItem('currentUser');
+      if (user) {
+        const parsedUser = JSON.parse(user);
+        setIsLoggedIn(true);
+      }
+    } catch (error) {
+      // 로컬 스토리지 데이터가 손상된 경우 클리어
+      localStorage.removeItem('currentUser');
+      setIsLoggedIn(false);
     }
   }, []);
 

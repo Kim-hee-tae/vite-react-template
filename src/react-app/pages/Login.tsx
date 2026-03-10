@@ -4,25 +4,33 @@ function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // 로그인 로직 (로컬 스토리지 사용)
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const user = users.find((u: any) => u.email === email && u.password === password);
-    if (!user) {
-      alert('이메일 또는 비밀번호가 잘못되었습니다.');
-      return;
-    }
-    if (!user.isApproved) {
-      alert('관리자 승인 대기 중입니다. 잠시 후 다시 시도해주세요.');
-      return;
-    }
-    localStorage.setItem('currentUser', JSON.stringify(user));
-    alert('로그인 성공!');
-    if (user.role === 'admin') {
-      window.location.href = '/admin';
-    } else {
-      window.location.href = '/';
+
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        alert('로그인 성공!');
+        if (data.user.role === 'admin') {
+          window.location.href = '/admin';
+        } else {
+          window.location.href = '/';
+        }
+      } else {
+        alert(data.error);
+      }
+    } catch (error) {
+      alert('로그인 중 오류가 발생했습니다.');
     }
   };
 

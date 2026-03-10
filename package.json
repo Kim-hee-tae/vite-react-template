@@ -12,6 +12,10 @@
 		"publish": true
 	},
 	"dependencies": {
+		"@types/bcryptjs": "^2.4.6",
+		"@types/better-sqlite3": "^7.6.13",
+		"bcryptjs": "^3.0.3",
+		"better-sqlite3": "^12.6.2",
 		"hono": "4.11.1",
 		"react": "19.2.1",
 		"react-dom": "19.2.1",

@@ -8,30 +8,69 @@ function Admin() {
     loadUsers();
   }, []);
 
-  const loadUsers = () => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const pending = users.filter((u: any) => !u.isApproved);
-    const approved = users.filter((u: any) => u.isApproved);
-    setPendingUsers(pending);
-    setApprovedUsers(approved);
+  const loadUsers = async () => {
+    try {
+      const [pendingRes, approvedRes] = await Promise.all([
+        fetch('/api/admin/pending-users'),
+        fetch('/api/admin/approved-users')
+      ]);
+
+      const pendingData = await pendingRes.json();
+      const approvedData = await approvedRes.json();
+
+      if (pendingData.success && approvedData.success) {
+        setPendingUsers(pendingData.users);
+        setApprovedUsers(approvedData.users);
+      } else {
+        alert('사용자 목록을 불러오는데 실패했습니다.');
+      }
+    } catch (error) {
+      alert('서버 오류가 발생했습니다.');
+    }
   };
 
-  const approveUser = (email: string) => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const updatedUsers = users.map((u: any) => 
-      u.email === email ? { ...u, isApproved: true } : u
-    );
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    alert('사용자가 승인되었습니다.');
-    loadUsers();
+  const approveUser = async (email: string) => {
+    try {
+      const response = await fetch('/api/admin/approve-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert(data.message);
+        loadUsers();
+      } else {
+        alert(data.error);
+      }
+    } catch (error) {
+      alert('승인 중 오류가 발생했습니다.');
+    }
   };
 
-  const rejectUser = (email: string) => {
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const updatedUsers = users.filter((u: any) => u.email !== email);
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    alert('사용자가 거부되었습니다.');
-    loadUsers();
+  const rejectUser = async (email: string) => {
+    try {
+      const response = await fetch('/api/admin/delete-user', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert(data.message);
+        loadUsers();
+      } else {
+        alert(data.error);
+      }
+    } catch (error) {
+      alert('삭제 중 오류가 발생했습니다.');
+    }
   };
 
   const handleLogout = () => {
