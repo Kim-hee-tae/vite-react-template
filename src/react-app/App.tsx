@@ -8,7 +8,7 @@ function App() {
       
       {/* 이동 버튼 추가 */}
       <button 
-        onClick={() => window.location.href = '/test'}
+        onClick={() => window.location.href = '/tt'}
         style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '5px' }}
       >
         테스트 페이지로 이동
