@@ -15,7 +15,7 @@ function App() {
         </button>
         
         {/* 아래 버튼을 추가합니다 */}
-        <button onClick={() => navigate('/test')} style={{ marginLeft: '10px', backgroundColor: '#646cff' }}>
+        <button onClick={() => navigate('/tt')} style={{ marginLeft: '10px', backgroundColor: '#646cff' }}>
           테스트 페이지로 이동
         </button>
       </div>
