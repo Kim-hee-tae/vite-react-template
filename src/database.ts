@@ -1,8 +1,19 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
+// 사용자 타입 정의
+export interface User {
+  id: number;
+  email: string;
+  password: string;
+  role: string;
+  is_approved: number;
+  created_at: string;
+}
+
 // 데이터베이스 파일 경로
-const dbPath = path.join(process.cwd(), 'user-database.db');
+const isWorkerEnvironment = typeof globalThis !== 'undefined' && 'fetch' in globalThis;
+const dbPath = isWorkerEnvironment ? ':memory:' : path.join(process.cwd(), 'user-database.db');
 
 // 데이터베이스 연결
 let db: Database.Database;
@@ -86,23 +97,23 @@ export const dbFunctions = {
   },
 
   // 이메일로 사용자 조회
-  getUserByEmail: (email: string) => {
-    return statements.getUserByEmail.get(email);
+  getUserByEmail: (email: string): User | undefined => {
+    return statements.getUserByEmail.get(email) as User | undefined;
   },
 
   // 모든 사용자 조회
-  getAllUsers: () => {
-    return statements.getAllUsers.all();
+  getAllUsers: (): User[] => {
+    return statements.getAllUsers.all() as User[];
   },
 
   // 승인 대기 사용자 조회
-  getPendingUsers: () => {
-    return statements.getPendingUsers.all();
+  getPendingUsers: (): Omit<User, 'password'>[] => {
+    return statements.getPendingUsers.all() as Omit<User, 'password'>[];
   },
 
   // 승인된 사용자 조회
-  getApprovedUsers: () => {
-    return statements.getApprovedUsers.all();
+  getApprovedUsers: (): Omit<User, 'password'>[] => {
+    return statements.getApprovedUsers.all() as Omit<User, 'password'>[];
   },
 
   // 사용자 승인
@@ -126,8 +137,8 @@ export const dbFunctions = {
   },
 
   // 관리자 존재 확인
-  hasAdmin: () => {
-    return statements.hasAdmin.get() > 0;
+  hasAdmin: (): boolean => {
+    return (statements.hasAdmin.get() as number) > 0;
   }
 };
 

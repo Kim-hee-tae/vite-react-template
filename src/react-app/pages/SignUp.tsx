@@ -50,6 +50,10 @@ function SignUp() {
         body: JSON.stringify({ email, password }),
       });
 
+      if (!response.ok) {
+        throw new Error('API 요청 실패');
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -59,7 +63,8 @@ function SignUp() {
         alert(data.error);
       }
     } catch (error) {
-      alert('회원 가입 중 오류가 발생했습니다.');
+      console.error('회원 가입 오류:', error);
+      alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 

@@ -15,6 +15,10 @@ function Admin() {
         fetch('/api/admin/approved-users')
       ]);
 
+      if (!pendingRes.ok || !approvedRes.ok) {
+        throw new Error('API 요청 실패');
+      }
+
       const pendingData = await pendingRes.json();
       const approvedData = await approvedRes.json();
 
@@ -25,7 +29,8 @@ function Admin() {
         alert('사용자 목록을 불러오는데 실패했습니다.');
       }
     } catch (error) {
-      alert('서버 오류가 발생했습니다.');
+      console.error('사용자 목록 로딩 오류:', error);
+      alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 
@@ -39,6 +44,10 @@ function Admin() {
         body: JSON.stringify({ email }),
       });
 
+      if (!response.ok) {
+        throw new Error('API 요청 실패');
+      }
+
       const data = await response.json();
       if (data.success) {
         alert(data.message);
@@ -47,7 +56,8 @@ function Admin() {
         alert(data.error);
       }
     } catch (error) {
-      alert('승인 중 오류가 발생했습니다.');
+      console.error('승인 오류:', error);
+      alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 
@@ -61,6 +71,10 @@ function Admin() {
         body: JSON.stringify({ email }),
       });
 
+      if (!response.ok) {
+        throw new Error('API 요청 실패');
+      }
+
       const data = await response.json();
       if (data.success) {
         alert(data.message);
@@ -69,7 +83,8 @@ function Admin() {
         alert(data.error);
       }
     } catch (error) {
-      alert('삭제 중 오류가 발생했습니다.');
+      console.error('삭제 오류:', error);
+      alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 

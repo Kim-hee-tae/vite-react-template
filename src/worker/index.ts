@@ -1,6 +1,70 @@
 import { Hono } from "hono";
 import bcrypt from "bcryptjs";
-import { dbFunctions } from "../database";
+
+// 메모리 저장소 (Worker 환경용)
+interface User {
+  id: number;
+  email: string;
+  password: string;
+  role: string;
+  is_approved: number;
+  created_at: string;
+}
+
+let users: User[] = [];
+let nextId = 1;
+
+// 데이터베이스 함수들 (메모리 기반)
+const dbFunctions = {
+  createUser: (email: string, password: string, role: string = 'user', isApproved: boolean = false) => {
+    // 이메일 중복 확인
+    if (users.find(u => u.email === email)) {
+      return { success: false, error: '이미 존재하는 이메일입니다.' };
+    }
+
+    const user: User = {
+      id: nextId++,
+      email,
+      password,
+      role,
+      is_approved: isApproved ? 1 : 0,
+      created_at: new Date().toISOString()
+    };
+
+    users.push(user);
+    return { success: true, id: user.id };
+  },
+
+  getUserByEmail: (email: string): User | undefined => {
+    return users.find(u => u.email === email);
+  },
+
+  getPendingUsers: (): Omit<User, 'password'>[] => {
+    return users.filter(u => u.is_approved === 0).map(({ password, ...u }) => u);
+  },
+
+  getApprovedUsers: (): Omit<User, 'password'>[] => {
+    return users.filter(u => u.is_approved === 1).map(({ password, ...u }) => u);
+  },
+
+  approveUser: (email: string) => {
+    const user = users.find(u => u.email === email);
+    if (user) {
+      user.is_approved = 1;
+      return { success: true };
+    }
+    return { success: false, error: '사용자를 찾을 수 없습니다.' };
+  },
+
+  deleteUser: (email: string) => {
+    const index = users.findIndex(u => u.email === email);
+    if (index !== -1) {
+      users.splice(index, 1);
+      return { success: true };
+    }
+    return { success: false, error: '사용자를 찾을 수 없습니다.' };
+  }
+};
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -61,7 +125,7 @@ app.post("/api/login", async (c) => {
   try {
     const { email, password } = await c.req.json();
 
-    const user = dbFunctions.getUserByEmail(email);
+    const user: User | undefined = dbFunctions.getUserByEmail(email);
     if (!user) {
       return c.json({ success: false, error: "이메일 또는 비밀번호가 잘못되었습니다." }, 401);
     }
