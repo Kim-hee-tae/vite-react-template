@@ -1,70 +1,18 @@
 import { Hono } from "hono";
 import bcrypt from "bcryptjs";
+import type { D1Database } from '@cloudflare/workers-types';
 
-// 메모리 저장소 (Worker 환경용)
-interface User {
-  id: number;
-  email: string;
-  password: string;
-  role: string;
-  is_approved: number;
-  created_at: string;
+import { createDbFunctions, User } from "../database";
+
+// Env 타입에 D1 바인딩 추가
+interface Env {
+  DB: D1Database;
+  // 다른 바인딩이 있으면 여기에 추가
 }
 
-let users: User[] = [];
-let nextId = 1;
+// dbFunctions는 요청 컨텍스트에서 env로 생성
+// 로컬 개발 시에는 SQLite, 클라우드에서는 D1을 사용
 
-// 데이터베이스 함수들 (메모리 기반)
-const dbFunctions = {
-  createUser: (email: string, password: string, role: string = 'user', isApproved: boolean = false) => {
-    // 이메일 중복 확인
-    if (users.find(u => u.email === email)) {
-      return { success: false, error: '이미 존재하는 이메일입니다.' };
-    }
-
-    const user: User = {
-      id: nextId++,
-      email,
-      password,
-      role,
-      is_approved: isApproved ? 1 : 0,
-      created_at: new Date().toISOString()
-    };
-
-    users.push(user);
-    return { success: true, id: user.id };
-  },
-
-  getUserByEmail: (email: string): User | undefined => {
-    return users.find(u => u.email === email);
-  },
-
-  getPendingUsers: (): Omit<User, 'password'>[] => {
-    return users.filter(u => u.is_approved === 0).map(({ password, ...u }) => u);
-  },
-
-  getApprovedUsers: (): Omit<User, 'password'>[] => {
-    return users.filter(u => u.is_approved === 1).map(({ password, ...u }) => u);
-  },
-
-  approveUser: (email: string) => {
-    const user = users.find(u => u.email === email);
-    if (user) {
-      user.is_approved = 1;
-      return { success: true };
-    }
-    return { success: false, error: '사용자를 찾을 수 없습니다.' };
-  },
-
-  deleteUser: (email: string) => {
-    const index = users.findIndex(u => u.email === email);
-    if (index !== -1) {
-      users.splice(index, 1);
-      return { success: true };
-    }
-    return { success: false, error: '사용자를 찾을 수 없습니다.' };
-  }
-};
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -73,6 +21,7 @@ app.get("/api/", (c) => c.json({ name: "Cloudflare" }));
 
 // 회원 가입 API
 app.post("/api/signup", async (c) => {
+  const db = createDbFunctions(c.env);
   try {
     const { email, password, role = 'user' } = await c.req.json();
 
@@ -105,7 +54,7 @@ app.post("/api/signup", async (c) => {
     const isApproved = isAdmin ? true : false;
 
     // 사용자 생성
-    const result = dbFunctions.createUser(email, hashedPassword, userRole, isApproved);
+    const result = await db.createUser(email, hashedPassword, userRole, isApproved);
 
     if (result.success) {
       return c.json({
@@ -122,10 +71,11 @@ app.post("/api/signup", async (c) => {
 
 // 로그인 API
 app.post("/api/login", async (c) => {
+  const db = createDbFunctions(c.env);
   try {
     const { email, password } = await c.req.json();
 
-    const user: User | undefined = dbFunctions.getUserByEmail(email);
+    const user: User | undefined = await db.getUserByEmail(email);
     if (!user) {
       return c.json({ success: false, error: "이메일 또는 비밀번호가 잘못되었습니다." }, 401);
     }
@@ -150,9 +100,10 @@ app.post("/api/login", async (c) => {
 });
 
 // 승인 대기 사용자 목록 조회 (관리자 전용)
-app.get("/api/admin/pending-users", (c) => {
+app.get("/api/admin/pending-users", async (c) => {
+  const db = createDbFunctions(c.env);
   try {
-    const users = dbFunctions.getPendingUsers();
+    const users = await db.getPendingUsers();
     return c.json({ success: true, users });
   } catch (error) {
     return c.json({ success: false, error: "서버 오류" }, 500);
@@ -160,9 +111,10 @@ app.get("/api/admin/pending-users", (c) => {
 });
 
 // 승인된 사용자 목록 조회 (관리자 전용)
-app.get("/api/admin/approved-users", (c) => {
+app.get("/api/admin/approved-users", async (c) => {
+  const db = createDbFunctions(c.env);
   try {
-    const users = dbFunctions.getApprovedUsers();
+    const users = await db.getApprovedUsers();
     return c.json({ success: true, users });
   } catch (error) {
     return c.json({ success: false, error: "서버 오류" }, 500);
@@ -171,9 +123,10 @@ app.get("/api/admin/approved-users", (c) => {
 
 // 사용자 승인 (관리자 전용)
 app.post("/api/admin/approve-user", async (c) => {
+  const db = createDbFunctions(c.env);
   try {
     const { email } = await c.req.json();
-    const result = dbFunctions.approveUser(email);
+    const result = await db.approveUser(email);
     if (result.success) {
       return c.json({ success: true, message: "사용자가 승인되었습니다." });
     } else {
@@ -186,9 +139,10 @@ app.post("/api/admin/approve-user", async (c) => {
 
 // 사용자 삭제 (관리자 전용)
 app.delete("/api/admin/delete-user", async (c) => {
+  const db = createDbFunctions(c.env);
   try {
     const { email } = await c.req.json();
-    const result = dbFunctions.deleteUser(email);
+    const result = await db.deleteUser(email);
     if (result.success) {
       return c.json({ success: true, message: "사용자가 삭제되었습니다." });
     } else {

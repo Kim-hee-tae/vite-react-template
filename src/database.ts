@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import type { D1Database, D1Result } from '@cloudflare/workers-types';
 
 // 사용자 타입 정의
 export interface User {
@@ -11,138 +12,135 @@ export interface User {
   created_at: string;
 }
 
-// 데이터베이스 파일 경로
+// 로컬 개발용 SQLite 설정
 const isWorkerEnvironment = typeof globalThis !== 'undefined' && 'fetch' in globalThis;
-const dbPath = isWorkerEnvironment ? ':memory:' : path.join(process.cwd(), 'user-database.db');
-
-// 데이터베이스 연결
-let db: Database.Database;
-try {
-  db = new Database(dbPath);
-} catch (error) {
-  console.error('데이터베이스 연결 실패:', error);
-  // 폴백: 메모리 데이터베이스 사용
-  db = new Database(':memory:');
+let sqliteDb: Database.Database | null = null;
+if (!isWorkerEnvironment) {
+  const dbPath = path.join(process.cwd(), 'user-database.db');
+  try {
+    sqliteDb = new Database(dbPath);
+  } catch (error) {
+    console.error('SQLite 연결 실패:', error);
+    sqliteDb = new Database(':memory:');
+  }
+  sqliteDb.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      role TEXT DEFAULT 'user',
+      is_approved BOOLEAN DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 }
 
-// 사용자 테이블 생성
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    role TEXT DEFAULT 'user',
-    is_approved BOOLEAN DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+// D1 또는 SQLite 모두를 지원하는 함수 생성기
+export function createDbFunctions(env?: { DB: D1Database }) {
+  // D1 바인딩이 있는 경우
+  if (env && env.DB) {
+    const db = env.DB;
+    // ensure table exists (migration)
+    db.prepare(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT DEFAULT 'user',
+        is_approved BOOLEAN DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `).run();
 
-// 데이터베이스 준비문
-const statements = {
-  // 사용자 생성
-  createUser: db.prepare(`
-    INSERT INTO users (email, password, role, is_approved)
-    VALUES (?, ?, ?, ?)
-  `),
+    return {
+      async createUser(email: string, password: string, role = 'user', isApproved = false) {
+        try {
+          const stmt = db.prepare(`INSERT INTO users (email, password, role, is_approved) VALUES (?, ?, ?, ?)`);
+          const res = await stmt.bind(email, password, role, isApproved ? 1 : 0).run() as D1Result<unknown>;
+          return { success: true, id: res.meta.last_row_id };
+        } catch (e: any) {
+          if (e.message.includes('UNIQUE')) {
+            return { success: false, error: '이미 존재하는 이메일입니다.' };
+          }
+          return { success: false, error: '사용자 생성 실패' };
+        }
+      },
 
-  // 이메일로 사용자 조회
-  getUserByEmail: db.prepare(`
-    SELECT * FROM users WHERE email = ?
-  `),
+      async getUserByEmail(email: string): Promise<User | undefined> {
+        const stmt = db.prepare(`SELECT * FROM users WHERE email = ?`);
+        const res = await stmt.bind(email).first<User>();
+        return res as User | undefined;
+      },
 
-  // 모든 사용자 조회
-  getAllUsers: db.prepare(`
-    SELECT id, email, role, is_approved, created_at FROM users
-  `),
+      async getPendingUsers(): Promise<Omit<User, 'password'>[]> {
+        const stmt = db.prepare(`SELECT id, email, role, created_at FROM users WHERE is_approved = 0`);
+        const rows = await stmt.all<Omit<User,'password'>>();
+        return rows.results;
+      },
 
-  // 승인 대기 사용자 조회
-  getPendingUsers: db.prepare(`
-    SELECT id, email, role, created_at FROM users WHERE is_approved = 0
-  `),
+      async getApprovedUsers(): Promise<Omit<User, 'password'>[]> {
+        const stmt = db.prepare(`SELECT id, email, role, created_at FROM users WHERE is_approved = 1`);
+        const rows = await stmt.all<Omit<User,'password'>>();
+        return rows.results;
+      },
 
-  // 승인된 사용자 조회
-  getApprovedUsers: db.prepare(`
-    SELECT id, email, role, created_at FROM users WHERE is_approved = 1
-  `),
+      async approveUser(email: string) {
+        const stmt = db.prepare(`UPDATE users SET is_approved = 1 WHERE email = ?`);
+        const res = await stmt.bind(email).run() as D1Result<unknown>;
+        return { success: res.meta.changes > 0 };
+      },
 
-  // 사용자 승인
-  approveUser: db.prepare(`
-    UPDATE users SET is_approved = 1 WHERE email = ?
-  `),
-
-  // 사용자 삭제
-  deleteUser: db.prepare(`
-    DELETE FROM users WHERE email = ?
-  `),
-
-  // 관리자 계정 존재 확인
-  hasAdmin: db.prepare(`
-    SELECT COUNT(*) as count FROM users WHERE role = 'admin'
-  `).pluck()
-};
-
-// 데이터베이스 함수들
-export const dbFunctions = {
-  // 사용자 생성
-  createUser: (email: string, password: string, role: string = 'user', isApproved: boolean = false) => {
-    try {
-      const result = statements.createUser.run(email, password, role, isApproved ? 1 : 0);
-      return { success: true, id: result.lastInsertRowid };
-    } catch (error: any) {
-      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-        return { success: false, error: '이미 존재하는 이메일입니다.' };
+      async deleteUser(email: string) {
+        const stmt = db.prepare(`DELETE FROM users WHERE email = ?`);
+        const res = await stmt.bind(email).run() as D1Result<unknown>;
+        return { success: res.meta.changes > 0 };
       }
-      return { success: false, error: '사용자 생성 실패' };
-    }
-  },
-
-  // 이메일로 사용자 조회
-  getUserByEmail: (email: string): User | undefined => {
-    return statements.getUserByEmail.get(email) as User | undefined;
-  },
-
-  // 모든 사용자 조회
-  getAllUsers: (): User[] => {
-    return statements.getAllUsers.all() as User[];
-  },
-
-  // 승인 대기 사용자 조회
-  getPendingUsers: (): Omit<User, 'password'>[] => {
-    return statements.getPendingUsers.all() as Omit<User, 'password'>[];
-  },
-
-  // 승인된 사용자 조회
-  getApprovedUsers: (): Omit<User, 'password'>[] => {
-    return statements.getApprovedUsers.all() as Omit<User, 'password'>[];
-  },
-
-  // 사용자 승인
-  approveUser: (email: string) => {
-    try {
-      const result = statements.approveUser.run(email);
-      return { success: result.changes > 0 };
-    } catch (error) {
-      return { success: false, error: '승인 실패' };
-    }
-  },
-
-  // 사용자 삭제
-  deleteUser: (email: string) => {
-    try {
-      const result = statements.deleteUser.run(email);
-      return { success: result.changes > 0 };
-    } catch (error) {
-      return { success: false, error: '삭제 실패' };
-    }
-  },
-
-  // 관리자 존재 확인
-  hasAdmin: (): boolean => {
-    return (statements.hasAdmin.get() as number) > 0;
+    };
   }
-};
 
-// 데이터베이스 연결 종료 함수 (필요시 사용)
-export const closeDatabase = () => {
-  db.close();
-};
+  // SQLite 로컬 버전
+  return {
+    createUser(email: string, password: string, role = 'user', isApproved = false) {
+      if (!sqliteDb) throw new Error('SQLite DB 없음');
+      try {
+        const stmt = sqliteDb.prepare(`
+          INSERT INTO users (email, password, role, is_approved) VALUES (?, ?, ?, ?)
+        `);
+        const result = stmt.run(email, password, role, isApproved ? 1 : 0);
+        return { success: true, id: Number(result.lastInsertRowid) };
+      } catch (e: any) {
+        if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+          return { success: false, error: '이미 존재하는 이메일입니다.' };
+        }
+        return { success: false, error: '사용자 생성 실패' };
+      }
+    },
+
+    getUserByEmail(email: string) {
+      if (!sqliteDb) return undefined;
+      return sqliteDb.prepare(`SELECT * FROM users WHERE email = ?`).get(email) as User | undefined;
+    },
+
+    getPendingUsers() {
+      if (!sqliteDb) return [];
+      return sqliteDb.prepare(`SELECT id, email, role, created_at FROM users WHERE is_approved = 0`).all() as Omit<User, 'password'>[];
+    },
+
+    getApprovedUsers() {
+      if (!sqliteDb) return [];
+      return sqliteDb.prepare(`SELECT id, email, role, created_at FROM users WHERE is_approved = 1`).all() as Omit<User, 'password'>[];
+    },
+
+    approveUser(email: string) {
+      if (!sqliteDb) return { success: false };
+      const res = sqliteDb.prepare(`UPDATE users SET is_approved = 1 WHERE email = ?`).run(email);
+      return { success: res.changes > 0 };
+    },
+
+    deleteUser(email: string) {
+      if (!sqliteDb) return { success: false };
+      const res = sqliteDb.prepare(`DELETE FROM users WHERE email = ?`).run(email);
+      return { success: res.changes > 0 };
+    }
+  };
+}
