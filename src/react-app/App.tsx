@@ -6,8 +6,21 @@ import SignUp from './pages/SignUp';
 import Admin from './pages/Admin';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // 초기 로그인 상태를 localStorage 기반으로 설정하여 바로 라우팅이 가능하도록 함
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    const user = localStorage.getItem('currentUser');
+    if (user && user !== 'undefined' && user !== 'null') {
+      try {
+        const parsed = JSON.parse(user);
+        return !!(parsed && typeof parsed === 'object');
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
 
+  // 이후에도 유효성 검사를 위해 한 번 더 확인
   useEffect(() => {
     try {
       const user = localStorage.getItem('currentUser');
@@ -17,7 +30,10 @@ function App() {
           setIsLoggedIn(true);
         } else {
           localStorage.removeItem('currentUser');
+          setIsLoggedIn(false);
         }
+      } else {
+        setIsLoggedIn(false);
       }
     } catch (error) {
       console.error('로컬 스토리지 파싱 오류:', error);

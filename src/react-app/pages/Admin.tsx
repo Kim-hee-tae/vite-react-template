@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function Admin() {
   const [pendingUsers, setPendingUsers] = useState<any[]>([]);
   const [approvedUsers, setApprovedUsers] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved'>('pending');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadUsers();
   }, []);
 
   const loadUsers = async () => {
+    setLoading(true);
     try {
       const [pendingRes, approvedRes] = await Promise.all([
         fetch('/api/admin/pending-users'),
@@ -31,6 +34,8 @@ function Admin() {
     } catch (error) {
       console.error('사용자 목록 로딩 오류:', error);
       alert('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -94,75 +99,184 @@ function Admin() {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1>관리자 페이지</h1>
-        <button 
-          onClick={handleLogout}
-          style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '5px' }}
-        >
-          로그아웃
-        </button>
+    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+        <h1 style={{ margin: 0, color: '#333' }}>관리자 패널</h1>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            onClick={() => setActiveTab('pending')}
+            style={{ 
+              padding: '10px 20px', 
+              backgroundColor: activeTab === 'pending' ? '#007BFF' : '#f8f9fa',
+              color: activeTab === 'pending' ? 'white' : '#333',
+              border: '1px solid #dee2e6',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            승인 대기 ({pendingUsers.length})
+          </button>
+          <button 
+            onClick={() => setActiveTab('approved')}
+            style={{ 
+              padding: '10px 20px', 
+              backgroundColor: activeTab === 'approved' ? '#28a745' : '#f8f9fa',
+              color: activeTab === 'approved' ? 'white' : '#333',
+              border: '1px solid #dee2e6',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            승인 완료 ({approvedUsers.length})
+          </button>
+          <button 
+            onClick={handleLogout}
+            style={{ 
+              padding: '10px 20px', 
+              backgroundColor: '#dc3545', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '5px', 
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            로그아웃
+          </button>
+        </div>
       </div>
 
-      <div style={{ marginBottom: '40px' }}>
-        <h2>승인 대기 중인 사용자 ({pendingUsers.length})</h2>
-        {pendingUsers.length === 0 ? (
-          <p>승인 대기 중인 사용자가 없습니다.</p>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f0f0f0' }}>
-                <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>이메일</th>
-                <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>작업</th>
-              </tr>
-            </thead>
-            <tbody>
+      {loading && (
+        <div style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+          로딩 중...
+        </div>
+      )}
+
+      {activeTab === 'pending' && (
+        <div>
+          <h2 style={{ color: '#007BFF', marginBottom: '20px' }}>🚀 승인 대기 사용자</h2>
+          {pendingUsers.length === 0 ? (
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '40px', 
+              backgroundColor: '#f8f9fa', 
+              borderRadius: '10px',
+              border: '2px dashed #dee2e6'
+            }}>
+              <h3 style={{ color: '#6c757d', margin: '0' }}>승인 대기 중인 사용자가 없습니다</h3>
+              <p style={{ color: '#6c757d', margin: '10px 0 0 0' }}>새로운 회원 가입 요청이 오면 여기에 표시됩니다.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: '15px' }}>
               {pendingUsers.map((user) => (
-                <tr key={user.email}>
-                  <td style={{ border: '1px solid #ddd', padding: '10px' }}>{user.email}</td>
-                  <td style={{ border: '1px solid #ddd', padding: '10px' }}>
+                <div key={user.email} style={{ 
+                  border: '1px solid #dee2e6', 
+                  borderRadius: '10px', 
+                  padding: '20px',
+                  backgroundColor: '#fff',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <h3 style={{ margin: '0 0 5px 0', color: '#333' }}>{user.email}</h3>
+                    <p style={{ margin: '0', color: '#6c757d', fontSize: '14px' }}>
+                      가입일: {new Date(user.created_at).toLocaleDateString('ko-KR')}
+                    </p>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
                     <button 
                       onClick={() => approveUser(user.email)}
-                      style={{ padding: '5px 10px', marginRight: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                      style={{ 
+                        padding: '8px 16px', 
+                        backgroundColor: '#28a745', 
+                        color: 'white', 
+                        border: 'none', 
+                        borderRadius: '5px', 
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px'
+                      }}
                     >
-                      승인
+                      ✅ 승인
                     </button>
                     <button 
                       onClick={() => rejectUser(user.email)}
-                      style={{ padding: '5px 10px', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                      style={{ 
+                        padding: '8px 16px', 
+                        backgroundColor: '#dc3545', 
+                        color: 'white', 
+                        border: 'none', 
+                        borderRadius: '5px', 
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px'
+                      }}
                     >
-                      거부
+                      ❌ 거부
                     </button>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
+      )}
 
-      <div>
-        <h2>승인된 사용자 ({approvedUsers.length})</h2>
-        {approvedUsers.length === 0 ? (
-          <p>승인된 사용자가 없습니다.</p>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f0f0f0' }}>
-                <th style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'left' }}>이메일</th>
-              </tr>
-            </thead>
-            <tbody>
+      {activeTab === 'approved' && (
+        <div>
+          <h2 style={{ color: '#28a745', marginBottom: '20px' }}>✅ 승인 완료 사용자</h2>
+          {approvedUsers.length === 0 ? (
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '40px', 
+              backgroundColor: '#f8f9fa', 
+              borderRadius: '10px',
+              border: '2px dashed #dee2e6'
+            }}>
+              <h3 style={{ color: '#6c757d', margin: '0' }}>승인된 사용자가 없습니다</h3>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: '10px' }}>
               {approvedUsers.map((user) => (
-                <tr key={user.email}>
-                  <td style={{ border: '1px solid #ddd', padding: '10px' }}>{user.email}</td>
-                </tr>
+                <div key={user.email} style={{ 
+                  border: '1px solid #dee2e6', 
+                  borderRadius: '8px', 
+                  padding: '15px',
+                  backgroundColor: '#f8f9fa',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <span style={{ fontWeight: 'bold', color: '#333' }}>{user.email}</span>
+                    <span style={{ marginLeft: '10px', color: '#6c757d', fontSize: '14px' }}>
+                      승인일: {new Date(user.created_at).toLocaleDateString('ko-KR')}
+                    </span>
+                  </div>
+                  <span style={{ 
+                    backgroundColor: '#28a745', 
+                    color: 'white', 
+                    padding: '4px 8px', 
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: 'bold'
+                  }}>
+                    승인됨
+                  </span>
+                </div>
               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
