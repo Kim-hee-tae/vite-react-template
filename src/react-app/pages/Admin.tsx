@@ -1,4 +1,4 @@
-import  { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 function Admin() {
   const [pendingUsers, setPendingUsers] = useState<any[]>([]);
