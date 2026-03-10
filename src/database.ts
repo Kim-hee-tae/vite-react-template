@@ -5,7 +5,14 @@ import path from 'path';
 const dbPath = path.join(process.cwd(), 'user-database.db');
 
 // 데이터베이스 연결
-const db = new Database(dbPath);
+let db: Database.Database;
+try {
+  db = new Database(dbPath);
+} catch (error) {
+  console.error('데이터베이스 연결 실패:', error);
+  // 폴백: 메모리 데이터베이스 사용
+  db = new Database(':memory:');
+}
 
 // 사용자 테이블 생성
 db.exec(`
