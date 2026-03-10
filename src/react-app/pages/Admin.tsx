@@ -13,9 +13,10 @@ function Admin() {
   const loadUsers = async () => {
     setLoading(true);
     try {
+      const base = import.meta.env.DEV ? 'http://localhost:8787' : '';
       const [pendingRes, approvedRes] = await Promise.all([
-        fetch('/api/admin/pending-users'),
-        fetch('/api/admin/approved-users')
+        fetch(`${base}/api/admin/pending-users`),
+        fetch(`${base}/api/admin/approved-users`)
       ]);
 
       if (!pendingRes.ok || !approvedRes.ok) {
@@ -41,7 +42,8 @@ function Admin() {
 
   const approveUser = async (email: string) => {
     try {
-      const response = await fetch('/api/admin/approve-user', {
+      const base = import.meta.env.DEV ? 'http://localhost:8787' : '';
+      const response = await fetch(`${base}/api/admin/approve-user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,7 +70,8 @@ function Admin() {
 
   const rejectUser = async (email: string) => {
     try {
-      const response = await fetch('/api/admin/delete-user', {
+      const base = import.meta.env.DEV ? 'http://localhost:8787' : '';
+      const response = await fetch(`${base}/api/admin/delete-user`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

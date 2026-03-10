@@ -56,6 +56,10 @@ npm run dev
 
 Your application will be available at [http://localhost:5173](http://localhost:5173).
 
+> **Note:** the REST API is served by a Cloudflare Worker on port 8787. Run
+> `npx wrangler dev` in a second terminal so the frontend can reach
+> `http://localhost:8787/api/*` (a proxy is already configured in `vite.config.ts`).
+
 ## Production
 
 Build your project for production:

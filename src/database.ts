@@ -98,7 +98,21 @@ export function createDbFunctions(env?: { DB: D1Database }) {
     };
   }
 
-  // SQLite 로컬 버전
+  // SQLite 로컬 버전 (또는 워커 환경에서 D1 미할당 시 임시 메모리 DB)
+  if (!sqliteDb) {
+    // create in-memory sqlite for worker dev if not exists
+    sqliteDb = new Database(':memory:');
+    sqliteDb.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        role TEXT DEFAULT 'user',
+        is_approved BOOLEAN DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+  }
   return {
     createUser(email: string, password: string, role = 'user', isApproved = false) {
       if (!sqliteDb) throw new Error('SQLite DB 없음');

@@ -4,4 +4,9 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 
 export default defineConfig({
 	plugins: [react(), cloudflare()],
+	server: {
+		proxy: {
+			'/api': 'http://localhost:8787'
+		}
+	}
 });

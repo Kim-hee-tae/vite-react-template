@@ -14,7 +14,12 @@ interface Env {
 // 로컬 개발 시에는 SQLite, 클라우드에서는 D1을 사용
 
 
+import { cors } from 'hono/cors';
+
 const app = new Hono<{ Bindings: Env }>();
+
+// allow CORS for local dev and general use
+app.use('*', cors({ origin: '*' }));
 
 // 기본 API
 app.get("/api/", (c) => c.json({ name: "Cloudflare" }));

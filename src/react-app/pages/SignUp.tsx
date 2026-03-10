@@ -42,7 +42,8 @@ function SignUp() {
     }
 
     try {
-      const response = await fetch('/api/signup', {
+      const base = import.meta.env.DEV ? 'http://localhost:8787' : '';
+      const response = await fetch(`${base}/api/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -8,7 +8,8 @@ function Login() {
     e.preventDefault();
 
     try {
-      const response = await fetch('/api/login', {
+      const base = import.meta.env.DEV ? 'http://localhost:8787' : '';
+      const response = await fetch(`${base}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
