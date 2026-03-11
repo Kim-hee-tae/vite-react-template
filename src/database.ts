@@ -10,9 +10,6 @@ export interface User {
   created_at: string;
 }
 
-// 환경 체크
-const isWorkerEnvironment = typeof globalThis !== 'undefined' && 'fetch' in globalThis;
-
 /**
  * D1 또는 SQLite 모두를 지원하는 함수 생성기
  */
