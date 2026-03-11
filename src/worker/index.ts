@@ -67,7 +67,7 @@ app.post("/api/login", async (c) => {
   try {
     const { email, password } = await c.req.json();
 
-    const user = await db.getUserByEmail(email);
+    const user = await db.getUserByEmail(email) as User | undefined;
     if (!user) {
       return c.json({ success: false, error: "이메일 또는 비밀번호가 잘못되었습니다." }, 401);
     }
