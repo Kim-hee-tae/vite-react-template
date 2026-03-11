@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import Admin from './pages/Admin';
+import TestDB from './pages/TestDB';
 
 function App() {
   // 초기 로그인 상태를 localStorage 기반으로 설정하여 바로 라우팅이 가능하도록 함
@@ -53,6 +54,7 @@ function App() {
       <Routes>
         <Route path="/login" element={isLoggedIn ? <Navigate to="/" /> : <Login />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/testdb" element={<TestDB />} />
         <Route path="/admin" element={
           isLoggedIn ? (
             (() => {
@@ -74,6 +76,14 @@ function App() {
                 style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', backgroundColor: '#f44336', color: 'white', border: 'none', borderRadius: '5px', marginRight: '10px' }}
               >
                 로그아웃
+              </button>
+
+              {/* DB 테스트 버튼 */}
+              <button 
+                onClick={() => window.location.href = '/testdb'}
+                style={{ padding: '10px 20px', fontSize: '16px', cursor: 'pointer', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '5px', marginRight: '10px' }}
+              >
+                🗄️ DB 통신 테스트
               </button>
 
               {/* 이동 버튼 추가 */}
